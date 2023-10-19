@@ -9,27 +9,46 @@ if ! dpkg -l | grep -q "nmap"; then
     if ! dpkg -l | grep -q "ncat"; then
     echo "ncat is not installed. Installing..."
     sudo apt-get install ncat -y
-    echo "ncat has been installed."
-    else
-        
+    echo "ncat has been installed."    
     fi
-else
-
-
 fi
+
+if [ -f .env ]; then
+    echo "Reading database configuration from .env file..."
+    source .env
+else
+    echo "Error: .env file not found."
+    exit 1
+fi
+
+# Define database configuration variables
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_NAME}
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASSWORD}
+
+if(! nc -z $DB_HOST $DB_PORT); then
+    echo "Error: Cannot connect to $DB_HOST:$DB_PORT"
+    exit 1
+fi
+
+
+
+echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "$HOME/.pgpass"
+chmod 600 "$HOME/.pgpass"
 
 #Function to connect to a PostgreSQL database
 connect_postgresql() {
-    read -p "Enter PostgreSQL username: " pg_user
-    read -s -p "Enter PostgreSQL password: " pg_password
-    echo
-    read -p "Enter PostgreSQL database name: " pg_db
+  
 
-    # You may need to adjust the host and port if your database is not on localhost:5432
-    PSQL_COMMAND="psql -h localhost -U $pg_user -d $pg_db"
-
+    PSQL_COMMAND="psql -h $DB_HOST -p $DB_PORT -d $DB_NAME -U $DB_USER -v ON_ERROR_STOP=1"
+    $PSQL_COMMAND -c "\q" || { echo "Error: Failed to connect to the database."; exit 1; }
+    
+   
+    
     # Function to create the laptop table
-    $PSQL_COMMAND -c "CREATE TABLE IF NOT EXISTS laptops (id serial primary key, brand text, model text, price numeric);"
+    # $PSQL_COMMAND -c "CREATE TABLE IF NOT EXISTS laptops (id serial primary key, brand text, model text, price numeric);"
 }
 
 # Function to connect to a MySQL database
@@ -83,11 +102,7 @@ while true; do
     esac
 done
 
-#BD environment variables from a .env file
 
-#Install nmap using apt
-
-#Start the HTTP server
 
 ncat -lk -p 3000 --sh-exec 'echo -ne "HTTP/1.1 200 OK\r\n\r\nContent-Type: application/json\r\n\r\n{\"message\": \"Hello from LaptopSales Bash low level REST API\"}"'
 
