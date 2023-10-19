@@ -33,36 +33,27 @@ if(! nc -z $DB_HOST $DB_PORT); then
     exit 1
 fi
 
-
-
 echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "$HOME/.pgpass"
 chmod 600 "$HOME/.pgpass"
 
 #Function to connect to a PostgreSQL database
 connect_postgresql() {
   
+    PSQL_COMMAND="psql -h $DB_HOST -p $DB_PORT -d $DB_NAME -U $DB_USER"
 
-    PSQL_COMMAND="psql -h $DB_HOST -p $DB_PORT -d $DB_NAME -U $DB_USER -v ON_ERROR_STOP=1"
-    $PSQL_COMMAND -c "\q" || { echo "Error: Failed to connect to the database."; exit 1; }
-    
-   
-    
-    # Function to create the laptop table
-    # $PSQL_COMMAND -c "CREATE TABLE IF NOT EXISTS laptops (id serial primary key, brand text, model text, price numeric);"
+     if timeout 5 $PSQL_COMMAND -c "\q"; then
+        echo "Successfully connected to the database."
+    else
+        echo "Error: Failed to connect to the database within the timeout period or host is incorrect."
+        exit 1
+    fi
 }
 
 # Function to connect to a MySQL database
-connect_mysql() {
-    read -p "Enter MySQL username: " mysql_user
-    read -s -p "Enter MySQL password: " mysql_password
-    echo
-    read -p "Enter MySQL database name: " mysql_db
-
-    # You may need to adjust the host and port if your database is not on localhost:3306
-    MYSQL_COMMAND="mysql -h localhost -u $mysql_user -p$mysql_password $mysql_db"
-
-    # Function to create the laptop table
-    $MYSQL_COMMAND -e "CREATE TABLE IF NOT EXISTS laptops (id INT AUTO_INCREMENT PRIMARY KEY, brand VARCHAR(255), model VARCHAR(255), price DECIMAL(10, 2));"
+start_server() {
+    ncat -lk -p 3000 --sh-exec 'echo -ne "HTTP/1.1 200 OK\r\n\r\nContent-Type: application/json\r\n\r\n{\"message\": \"Hello from LaptopSales Bash low level REST API\"}"'
+    echo "Server started on port 3000"
+   
 }
 
 # Function to create a laptop
@@ -85,24 +76,19 @@ create_laptop() {
 # Main menu
 while true; do
     echo "Laptop Sales CRUD"
-    echo "1. Connect to PostgreSQL"
-    echo "2. Connect to MySQL"
-    echo "3. Create Laptop"
+    echo "1. Connect to PostgreSQL DB"
+    echo "2. Start laptop sales Server"
     # Add options for other CRUD operations here
-    echo "4. Exit"
-    read -p "Choose an option (1/2/3/4): " choice
+    echo "3. Close Server and Exit"
+    read -p "Choose an option (1/2/3): " choice
 
     case $choice in
         1) selected_db="postgresql"; connect_postgresql ;;
-        2) selected_db="mysql"; connect_mysql ;;
-        3) create_laptop ;;
-        # Add cases for other CRUD operations
-        4) exit ;;
+        2) selected_db="mysql"; start_server ;;
+         # Add cases for other CRUD operations
+        3) exit ;;
         *) echo "Invalid choice. Please select a valid option." ;;
     esac
 done
 
-
-
-ncat -lk -p 3000 --sh-exec 'echo -ne "HTTP/1.1 200 OK\r\n\r\nContent-Type: application/json\r\n\r\n{\"message\": \"Hello from LaptopSales Bash low level REST API\"}"'
 
