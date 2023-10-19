@@ -51,7 +51,12 @@ connect_postgresql() {
 
 # Function to connect to a MySQL database
 start_server() {
-    ncat -lk -p 3000 --sh-exec 'echo -ne "HTTP/1.1 200 OK\r\n\r\nContent-Type: application/json\r\n\r\n{\"message\": \"Hello from LaptopSales Bash low level REST API\"}"'
+    ncat -lk -p 3000 --sh-exec 'echo -ne "HTTP/1.1 200 OK\r\n\r\nContent-Type: application/json\r\n\r\n{\"message\": \"Hello from LaptopSales Bash low-level REST API\"}"' &
+
+    # Sleep briefly to allow ncat to start listening
+    sleep 1
+
+    # Echo "Server running" in the same terminal
     echo "Server started on port 3000"
    
 }
@@ -71,6 +76,17 @@ create_laptop() {
     echo "Laptop created."
 }
 
+stop_and_exit() {
+    ncat_pid=$(pgrep -f "ncat -lk -p 3000")
+    if [ -n "$ncat_pid" ]; then
+        echo "Stopping the ncat server..."
+        kill "$ncat_pid"
+    else
+        echo "The ncat server is not running."
+    fi
+    exit 0
+}
+
 # Add other CRUD operations (read, update, delete) similarly
 
 # Main menu
@@ -86,8 +102,7 @@ while true; do
         1) selected_db="postgresql"; connect_postgresql ;;
         2) selected_db="mysql"; start_server ;;
          # Add cases for other CRUD operations
-        3) exit ;;
-        *) echo "Invalid choice. Please select a valid option." ;;
+        3) stop_and_exit ;;
     esac
 done
 
