@@ -40,7 +40,7 @@ else
 fi
 
 
-if [ ! -f .env.example ] && [ ! -f .env ]; then
+if [ ! -f .env.example ] || [ ! -f .env ]; then
   repo_url="https://github.com/procode3/laptopSalesAPI.git"
   clone_dir="./server"
 
@@ -56,7 +56,7 @@ if [ ! -f .env.example ] && [ ! -f .env ]; then
   if [ -d "$clone_dir" ]; then
     if [ -f "$clone_dir/.env.example" ]; then
       cp -r "$clone_dir"/* .
-      mv .env.example .env
+      cp .env.example .env
       echo "Repository files copied to the current directory, and .env.example renamed to .env."
     fi
   fi
