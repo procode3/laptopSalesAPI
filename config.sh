@@ -40,6 +40,31 @@ else
 fi
 
 
+if [ ! -f .env.example ] && [ ! -f .env ]; then
+  repo_url="https://github.com/procode3/laptopSalesAPI.git"
+  clone_dir="./server"
+
+  shopt -s dotglob
+
+  if [ -d "$clone_dir" ]; then
+    echo "Repository directory already exists."
+  else
+    git clone "$repo_url" "$clone_dir"
+    echo "Repository cloned."
+  fi
+
+  if [ -d "$clone_dir" ]; then
+    if [ -f "$clone_dir/.env.example" ]; then
+      cp -r "$clone_dir"/* .
+      mv .env.example .env
+      echo "Repository files copied to the current directory, and .env.example renamed to .env."
+    fi
+  fi
+
+  shopt -u dotglob
+else
+  echo ".env.example and/or .env files already exist in the current directory. Not running the script."
+fi
 
 
 
@@ -65,11 +90,6 @@ DB_NAME=${DB_NAME}
 DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
 
-if(! nc -z $DB_HOST $DB_PORT); then
-    echo "Error: Cannot connect to $DB_HOST:$DB_PORT"
-    exit 1
-fi
-
 echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "$HOME/.pgpass"
 chmod 600 "$HOME/.pgpass"
 
@@ -91,7 +111,7 @@ start_server() {
 
     api_response='{"message": "Hello from the REST API"}'
 
-# Create a custom request handler for the REST API endpoint
+    # Create a custom request handler for the REST API endpoint
 
 
     python3 api_server.py &
@@ -101,7 +121,6 @@ start_server() {
 
     # Echo "Server running" in the same terminal
     echo "Server started on port 8080"
-   
 }
 
 
@@ -112,9 +131,12 @@ start_server() {
 
 stop_and_exit() {
     PID=$(pgrep -f 'python3')
-
-    # Kill the Python server
-    kill -9 $PID
+    if [ -z "$PID" ]; then
+        echo "Bye..."
+    else
+        kill $PID
+        echo "Server stopped."
+    fi
     exit 0
 }
 
@@ -136,5 +158,3 @@ while true; do
         3) stop_and_exit ;;
     esac
 done
-
-
