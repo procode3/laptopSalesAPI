@@ -1,17 +1,47 @@
 #!/bin/bash
 
-# Check if nmap is installed
-if ! dpkg -l | grep -q "nmap"; then
-    echo "nmap is not installed. Installing..."
-    sudo apt-get update
-    sudo apt-get install nmap -y
-    echo "nmap has been installed."
-    if ! dpkg -l | grep -q "ncat"; then
-    echo "ncat is not installed. Installing..."
-    sudo apt-get install ncat -y
-    echo "ncat has been installed."    
-    fi
+if ! command -v python3 &>/dev/null; then
+    echo "Python 3 is not installed. Installing..."
+    sudo apt update
+    sudo apt install python3 -y
+    echo "Python 3 has been installed."
+    sudo apt install python3-pip -y
+    
+    else
+    echo "Installing dependencies..."
+        
 fi
+
+if command -v pip3 &>/dev/null; then
+    echo "pip is already installed."
+    else
+        # Install pip for Python 3
+    sudo apt update
+    sudo apt install python3-pip -y
+    echo "pip has been installed."
+        
+fi
+
+# Check if psycopg2 is installed
+if ! python3 -c "import psycopg2" 2>/dev/null; then
+    echo "psycopg2 is not installed. Attempting to install..."
+
+    # Try installing psycopg2-binary
+    pip3 install psycopg2-binary
+
+    # Check if the installation was successful
+    if ! python3 -c "import psycopg2" 2>/dev/null; then
+        echo "Failed to install psycopg2. Please install it manually."
+        exit 1
+    fi
+    echo "psycopg2 has been installed successfully."
+else
+    echo "psycopg2 is already installed."
+fi
+
+
+
+
 
 if [ -f .env ]; then
     echo "Reading database configuration from .env file..."
@@ -20,6 +50,13 @@ else
     echo "Error: .env file not found."
     exit 1
 fi
+
+#set env variables with values from .env file
+export DB_HOST=${DB_HOST}
+export DB_PORT=${DB_PORT}
+export DB_NAME=${DB_NAME}
+export DB_USER=${DB_USER}
+export DB_PASSWORD=${DB_PASSWORD}
 
 # Define database configuration variables
 DB_HOST=${DB_HOST}
@@ -51,39 +88,33 @@ connect_postgresql() {
 
 # Function to connect to a MySQL database
 start_server() {
-    ncat -lk -p 3000 --sh-exec 'echo -ne "HTTP/1.1 200 OK\r\n\r\nContent-Type: application/json\r\n\r\n{\"message\": \"Hello from LaptopSales Bash low-level REST API\"}"' &
+
+    api_response='{"message": "Hello from the REST API"}'
+
+# Create a custom request handler for the REST API endpoint
+
+
+    python3 api_server.py &
 
     # Sleep briefly to allow ncat to start listening
     sleep 1
 
     # Echo "Server running" in the same terminal
-    echo "Server started on port 3000"
+    echo "Server started on port 8080"
    
 }
 
-# Function to create a laptop
-create_laptop() {
-    read -p "Enter laptop brand: " brand
-    read -p "Enter laptop model: " model
-    read -p "Enter laptop price: " price
 
-    if [ "$selected_db" == "postgresql" ]; then
-        $PSQL_COMMAND -c "INSERT INTO laptops (brand, model, price) VALUES ('$brand', '$model', $price);"
-    else
-        $MYSQL_COMMAND -e "INSERT INTO laptops (brand, model, price) VALUES ('$brand', '$model', $price);"
-    fi
 
-    echo "Laptop created."
-}
+
+# Function to delete a specific laptop by ID
+
 
 stop_and_exit() {
-    ncat_pid=$(pgrep -f "ncat -lk -p 3000")
-    if [ -n "$ncat_pid" ]; then
-        echo "Stopping the ncat server..."
-        kill "$ncat_pid"
-    else
-        echo "The ncat server is not running."
-    fi
+    PID=$(pgrep -f 'python3')
+
+    # Kill the Python server
+    kill -9 $PID
     exit 0
 }
 
