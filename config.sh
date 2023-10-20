@@ -135,7 +135,7 @@ stop_and_exit() {
         echo "Bye..."
     else
         kill $PID
-        echo "Server stopped."
+        echo "Stopping server..."
     fi
     exit 0
 }
@@ -144,7 +144,7 @@ stop_and_exit() {
 # Main menu
 while true; do
     echo "Laptop Sales CRUD"
-    echo "1. Connect to PostgreSQL DB"
+    echo "1. Test PostgreSQL DB connection"
     echo "2. Start laptop sales Server"
     # Add options for other CRUD operations here
     echo "3. Close Server and Exit"
@@ -152,7 +152,7 @@ while true; do
 
     case $choice in
         1) selected_db="postgresql"; connect_postgresql ;;
-        2) selected_db="mysql"; start_server ;;
+        2) connect_postgresql & start_server ;;
          # Add cases for other CRUD operations
         3) stop_and_exit ;;
     esac
