@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# Function to install a package if it's not already installed
+install_package() {
+    if ! command -v $1 &>/dev/null; then
+        echo "$1 is not installed. Installing..."
+        sudo apt update
+        sudo apt install $1 -y
+        echo "$1 has been installed."
+    else
+        echo "$1 is already installed."
+    fi
+}
+
+# Install Python 3 and pip
+install_package python3
+install_package python3-pip
+
+# Check and install psycopg2
+if ! python3 -c "import psycopg2" 2>/dev/null; then
+    echo "psycopg2 is not installed. Attempting to install..."
+    pip3 install psycopg2-binary
+    if ! python3 -c "import psycopg2" 2>/dev/null; then
+        echo "Failed to install psycopg2. Please install it manually."
+        exit 1
+    fi
+    echo "psycopg2 has been installed successfully."
+else
+    echo "psycopg2 is already installed."
+fi
+
+# Clone the repository and copy .env file
+if [ ! -f .env.example ] && [ ! -f .env ]; then
+    repo_url="https://github.com/procode3/laptopSalesAPI.git"
+    clone_dir="./server"
+
+    shopt -s dotglob
+
+    if [ -d "$clone_dir" ]; then
+        echo "Repository directory already exists."
+    else
+        git clone "$repo_url" "$clone_dir"
+        echo "Repository cloned."
+    fi
+
+    if [ -d "$clone_dir" ]; then
+        if [ -f "$clone_dir/.env.example" ]; then
+            cp -r "$clone_dir"/* .
+            cp .env.example .env
+            echo "Repository files copied to the current directory, and .env.example renamed to .env."
+        fi
+    fi
+
+    shopt -u dotglob
+else
+    echo ".env.example and/or .env files already exist in the current directory. Not running the script."
+fi
+
+# Source .env file
+if [ -f .env ]; then
+    echo "Reading database configuration from .env file..."
+    source .env
+else
+    echo "Error: .env file not found."
+    exit 1
+fi
+
+# Set environment variables
+export DB_HOST
+export DB_PORT
+export DB_NAME
+export DB_USER
+export DB_PASSWORD
+
+# Define database configuration variables
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_NAME}
+DB_USER=${DB_USER}
+DB_PASSWORD=${DB_PASSWORD}
+
+# Create .pgpass file
+echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "$HOME/.pgpass"
+chmod 600 "$HOME/.pgpass"
+
+# Function to connect to a PostgreSQL database
+connect_postgresql() {
+    PSQL_COMMAND="psql -h $DB_HOST -p $DB_PORT -d $DB_NAME -U $DB_USER"
+    if timeout 5 $PSQL_COMMAND -c "\q"; then
+        echo "Successfully connected to the database."
+    else
+        echo "Error: Failed to connect to the database within the timeout period or host is incorrect."
+        exit 1
+    fi
+}
+
+# Function to start the API server
+start_server() {
+    python3 api_server.py &
+    echo "Server started on port 8080"
+}
+
+# Function to stop the server and exit
+stop_and_exit() {
+    PID=$(pgrep -f 'python3')
+    if [ -z "$PID" ]; then
+        echo "Bye..."
+    else
+        kill $PID
+        echo "Server stopped."
+    fi
+    exit 0
+}
+
+# Main menu
+while true; do
+    echo "Laptop Sales CRUD"
+    echo "1. Connect to PostgreSQL DB"
+    echo "2. Start laptop sales Server"
+    echo "3. Close Server and Exit"
+    read -p "Choose an option (1/2/3): " choice
+
+    case $choice in
+        1) selected_db="postgresql"; connect_postgresql ;;
+        2) selected_db="mysql"; start_server ;;
+        3) stop_and_exit ;;
+    esac
+done
