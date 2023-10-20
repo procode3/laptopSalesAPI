@@ -66,11 +66,56 @@ class LaptopAPIHandler(BaseHTTPRequestHandler):
             cursor.close()
             conn.close()
             # Return the laptops as JSON
-            
-            self.wfile.write(json.dumps(laptops).encode())
+            response_data = {
+                'status': '✔success',
+                "message": "Successfully retrieved laptops.",
+                'data': laptops
+            }
+            self.wfile.write(json.dumps(response_data).encode())
+
+        elif self.path.startswith('/api/laptops/'):
+            laptop_id = int(self.path.split('/')[3])
+            conn = psycopg2.connect(**db_settings)
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM laptops_sales WHERE id = %s;', (laptop_id,))
+            laptop = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if laptop:
+                response_data = {
+                    'status': '✔success',
+                    "message": "Successfully retrieved laptop.",
+                    'data': {
+                        'id': laptop[0],
+                        'brand': laptop[1],
+                        'model': laptop[2],
+                        'price': float(laptop[3])
+                    }
+                }
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data).encode())
+            else:
+                response_data = {
+                    'status': '❌Error',
+                    "message": "Laptop not found.",
+                    'data': {}
+                }
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data).encode())
         else:
+            response_data = {
+                'status': '❌Error',
+                "message": "Failed to retreive check request",
+                'data': []
+            }
             self.send_response(404)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode())
 
     def do_POST(self):
         if self.path == '/api/laptops':
@@ -98,7 +143,6 @@ class LaptopAPIHandler(BaseHTTPRequestHandler):
                 conn.commit()
                 cursor.close()
                 conn.close()
-            
 
 
                 response_data = {
@@ -121,41 +165,152 @@ class LaptopAPIHandler(BaseHTTPRequestHandler):
                 self.send_response(400)  # Bad Request
                 self.end_headers()
         else:
+            response_data = {
+                'status': '❌Error',
+                "message": "Failed to post",
+                'data': []
+            }
             self.send_response(404)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode())
 
     def do_PUT(self):
-        if self.path.startswith('/laptops/'):
-            laptop_id = int(self.path.split('/')[2])
-            content_length = int(self.headers['Content-Length'])
-            put_data = self.rfile.read(content_length)
-            updated_laptop = json.loads(put_data)
-            for laptop in laptops:
-                if laptop['id'] == laptop_id:
-                    laptop.update(updated_laptop)
+        if self.path.startswith('/api/laptops/'):
+            try:
+                laptop_id = int(self.path.split('/')[3])
+                content_length = int(self.headers['Content-Length'])
+                put_data = self.rfile.read(content_length)
+                updated_laptop = json.loads(put_data)
+                if laptop_id:
+                    conn = psycopg2.connect(**db_settings)
+                    cursor = conn.cursor()
+                
+                    brand, model, price = updated_laptop['brand'], updated_laptop['model'], updated_laptop['price'] 
+
+                    cursor.execute("""
+                    UPDATE laptops_sales SET brand = %s, model = %s, price = %s WHERE id = %s
+                    """, (brand, model, price, laptop_id))
+
+                    cursor.execute('SELECT * FROM laptops_sales WHERE id = %s;', (laptop_id,))
+                    updated_id, brand, model, price = cursor.fetchone()
+                    cursor.close()
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+
+                    response_data = {
+                        "message": "Laptop updated successfully.",
+                        "status": "✔success",
+                        "data": {
+                            "id": updated_id,
+                            "brand": brand,
+                            "model": model,
+                            "price": str(price),
+                            "timestamp": str(datetime.datetime.now())
+                        }
+                    }
                     self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
                     self.end_headers()
+                    self.wfile.write(json.dumps(response_data).encode())
                     return
-            self.send_response(404)
-            self.end_headers()
+                else:
+                    response_data = {
+                        "message": "Laptop not found check id",
+                        "status": "❌Error",
+                        "data": {}
+                    }
+                    self.send_response(404)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(response_data).encode())
+            except Exception as e:
+                print(e)
+                response_data = {
+                    "message": "Mising or invalid data.",
+                    "status": "❌Error",
+                    "data": {}
+                }
+                self.send_response(400)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data).encode())
+
         else:
+            response_data = {
+                'status': '❌Error',
+                "message": "Failed to put",
+                'data': []
+            }
             self.send_response(404)
+            self.send_header('Content-type', 'application/json')
             self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode())
 
     def do_DELETE(self):
-        if self.path.startswith('/laptops/'):
-            laptop_id = int(self.path.split('/')[2])
-            for laptop in laptops:
-                if laptop['id'] == laptop_id:
-                    laptops.remove(laptop)
-                    self.send_response(204)
+        if self.path.startswith('/api/laptops/'):
+            try:
+                laptop_id = int(self.path.split('/')[3])
+                conn = psycopg2.connect(**db_settings)
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM laptops_sales WHERE id = %s;', (laptop_id,))
+                laptop = cursor.fetchone()
+                if not laptop:
+                    response_data = {
+                        'status': '❌Error!',
+                        "message": "Laptop not found.",
+                        'data': {}
+                    }
+                    self.send_response(404)
+                    self.send_header('Content-type', 'application/json')
                     self.end_headers()
+                    self.wfile.write(json.dumps(response_data).encode())
                     return
-            self.send_response(404)
-            self.end_headers()
-        else:
-            self.send_response(404)
-            self.end_headers()
+                cursor.execute('DELETE FROM laptops_sales WHERE id = %s;', (laptop_id,))
+                cursor.close()
+                conn.commit()
+                cursor.close()
+                conn.close()
+                response_data = {
+                    'status': '✔success',
+                    "message": "Successfully deleted laptop with id: " + str(laptop_id) + ".",  
+                    'data': {
+                        'id': laptop[0],
+                        "brand": laptop[1],
+                        "model": laptop[2],
+                        "price": str(laptop[3]),
+                        "timestamp": str(datetime.datetime.now())
+                    }
+                }
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data).encode())
+                return
+                if laptop:
+                    response_data = {
+                        'status': '❌Error',
+                        "message": "Failed to delete",
+                        'data': []
+                    }
+                    self.send_response(404)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(response_data).encode())
+            except Exception as e:
+                print(e)
+                response_data = {
+                    'status': '❌Error',
+                    "message": "Failed to delete",
+                    'data': []
+                }
+                self.send_response(404)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response_data).encode())
+
+    
 
 def run():
     server_address = ('', 8080)
