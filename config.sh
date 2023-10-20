@@ -45,7 +45,7 @@ if [ ! -f .env.example ] && [ ! -f .env ]; then
   clone_dir="./server"
 
   shopt -s dotglob
-
+  echo "Checking configurations..."
   if [ -d "$clone_dir" ]; then
     echo "Repository directory already exists."
   else
@@ -76,14 +76,13 @@ else
     exit 1
 fi
 
-#set env variables with values from .env file
 export DB_HOST=${DB_HOST}
 export DB_PORT=${DB_PORT}
 export DB_NAME=${DB_NAME}
 export DB_USER=${DB_USER}
 export DB_PASSWORD=${DB_PASSWORD}
 
-# Define database configuration variables
+
 DB_HOST=${DB_HOST}
 DB_PORT=${DB_PORT}
 DB_NAME=${DB_NAME}
@@ -93,7 +92,7 @@ DB_PASSWORD=${DB_PASSWORD}
 echo "$DB_HOST:$DB_PORT:$DB_NAME:$DB_USER:$DB_PASSWORD" > "$HOME/.pgpass"
 chmod 600 "$HOME/.pgpass"
 
-#Function to connect to a PostgreSQL database
+
 connect_postgresql() {
   
     PSQL_COMMAND="psql -h $DB_HOST -p $DB_PORT -d $DB_NAME -U $DB_USER"
@@ -106,28 +105,13 @@ connect_postgresql() {
     fi
 }
 
-# Function to connect to a MySQL database
 start_server() {
-
+    connect_postgresql
     api_response='{"message": "Hello from the REST API"}'
-
-    # Create a custom request handler for the REST API endpoint
-
-
     python3 api_server.py &
-
-    # Sleep briefly to allow ncat to start listening
     sleep 1
-
-    # Echo "Server running" in the same terminal
     echo "Server started on port 8080"
 }
-
-
-
-
-# Function to delete a specific laptop by ID
-
 
 stop_and_exit() {
     PID=$(pgrep -f 'python3')
@@ -140,7 +124,6 @@ stop_and_exit() {
     exit 0
 }
 
-# Add other CRUD operations (read, update, delete) similarly
 
 # Main menu
 while true; do
@@ -153,7 +136,7 @@ while true; do
 
     case $choice in
         1) selected_db="postgresql"; connect_postgresql ;;
-        2) selected_db="mysql"; start_server ;;
+        2) start_server ;;
          # Add cases for other CRUD operations
         3) stop_and_exit ;;
     esac
